@@ -15,7 +15,7 @@ class clase:
     horaInicio=''
     horaFin=''
     dias=''
-
+    
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36"
 
 def scrape():
@@ -35,39 +35,49 @@ def scrape():
         noodles = BeautifulSoup(request(nuevolink),'html5lib')
         nombres = noodles.find_all('td', width='156')
 
+        contenido = ''
+        salon = []
+        dias =''
+        horarioInicio =''
+        horarioFin=''
+            
         for casilla in noodles.find_all('td',height='17'):
             contenido = str(casilla.string)
-            salon = []
-            dias =''
-            horarioInicio =''
-            horarioFin=''
-            if (('.' in contenido and '_' in contenido) or 'NOREQ' in contenido):
+            
+            if ((contenido.startswith('.') and '_' in contenido) or 'NOREQ' in contenido):
                 #print('entre a un salon: '+ contenido)
-                salon.append(contenido)
+                contenido.replace('  ', '')
+                salon.append(contenido.strip())
 
+                ##TODO salón no se está asignando bien
+                ##Aparte de eso, días queda con mucha información (profesores + salón)
+                
             elif('-' in contenido):
                 #print('entre a un horario: '+ contenido)
-                horario = contenido.split('-')
+                horario = contenido.strip().split('-')
                 horarioInicio = horario[0]
                 horarioFin = horario[1]
            #si no contiene el salón o el horario, falta verificar que sea un día
-            elif (esDia(contenido) == 1):
-                #print('entre a un dia: '+ contenido)
-                dias = contenido.replace('    ','')
+            elif (esDia(contenido)):
+                #print('entre a un dia: '+ contenido )
+                dias = contenido.strip()
 
-            if( salon and horarioInicio and horarioFin and dias):
+            if( salon != '' and horarioInicio != '' and horarioFin != '' and dias != ''):
                 nuevaClase = clase()
                 nuevaClase.salon = salon
                 nuevaClase.horaInicio = horarioInicio
                 nuevaClase.horaFin = horarioFin
                 nuevaClase.dias = dias
                 print('Clase nueva: \n' +
-                  'Salon: ' + nuevaClase.salon+
-                  'Horario: ' + nuevaClase.horaInicio + '-' + nuevaClase.horaFin + 
-                  'Días: ' + nuevaClase.dias)
+                  'Salon: ' + ''.join(nuevaClase.salon) + '\n' +
+                  'Horario: ' + ''.join(nuevaClase.horaInicio) + ' - ' + ''.join(nuevaClase.horaFin) + '\n' + 
+                  'Días: ' + ''.join(nuevaClase.dias)+ '\n')
                 listaClases.append(nuevaClase)
 
-                dias, horarioInicio, horarioFin, dias = ''
+                dias = ''
+                horarioInicio = ''
+                horarioFin = ''
+                dias = ''
                 salon = []
                 
             
@@ -120,11 +130,10 @@ def store(content):
 
 def esDia(casilla):
     print(casilla)
-    if ('Dí' in casilla or 'Horas' in casilla or 'Sal' in casilla):
-        return 0
+    if('  L  ' in casilla or '  M  ' in casilla or '  I  ' in casilla or'  J  ' in casilla or '  V  ' in casilla or '  S  ' in casilla):
+        return True
     else:
-        if('  L  ' in casilla or '  M  ' in casilla or '  I  ' in casilla or'  J  ' in casilla or '  V  ' in casilla or '  S  ' in casilla):
-            return 1
+        return False
 
 scrape()
 schedule.every(5).minutes.do(scrape)
