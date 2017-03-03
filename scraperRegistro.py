@@ -10,11 +10,10 @@ import os
 import requests
 
 class clase:
-    nombre = ''
     salon = []
-    horaInicio=''
-    horaFin=''
-    dias=''
+    horario = []
+    dias=[]
+    profesores = []
     
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36"
 
@@ -36,52 +35,55 @@ def scrape():
         nombres = noodles.find_all('td', width='156')
 
         contenido = ''
+
         salon = []
-        dias =''
-        horarioInicio =''
-        horarioFin=''
+        dias =[]
+        horario = []
+        profesores = []
             
         for casilla in noodles.find_all('td',height='17'):
+            
             contenido = str(casilla.string)
+            if (contenido != None):  
+
+                contenido = str(contenido.lstrip().rstrip())
             
-            if ((contenido.startswith('.') and '_' in contenido) or 'NOREQ' in contenido):
-                #print('entre a un salon: '+ contenido)
-                contenido.replace('  ', '')
-                salon.append(contenido.strip())
+                if ((contenido.startswith('.') and ('_' in contenido)) or 'NOREQ' in contenido):
+                    salon.append(contenido.lstrip().rstrip())
+                    
+                elif('-' in contenido):
+                    #print('entre a un horario: '+ contenido)
+                    horario.append(contenido)
 
-                ##TODO salón no se está asignando bien
-                ##Aparte de eso, días queda con mucha información (profesores + salón)
-                
-            elif('-' in contenido):
-                #print('entre a un horario: '+ contenido)
-                horario = contenido.strip().split('-')
-                horarioInicio = horario[0]
-                horarioFin = horario[1]
-           #si no contiene el salón o el horario, falta verificar que sea un día
-            elif (esDia(contenido)):
-                #print('entre a un dia: '+ contenido )
-                dias = contenido.strip()
+               #si no contiene el salón o el horario, falta verificar que sea un día
+                elif (esDia(contenido)):
+                    #print('entre a un dia: '+ contenido )
+                    dias.append(contenido)
 
-            if( salon != '' and horarioInicio != '' and horarioFin != '' and dias != ''):
-                nuevaClase = clase()
-                nuevaClase.salon = salon
-                nuevaClase.horaInicio = horarioInicio
-                nuevaClase.horaFin = horarioFin
-                nuevaClase.dias = dias
-                print('Clase nueva: \n' +
-                  'Salon: ' + ''.join(nuevaClase.salon) + '\n' +
-                  'Horario: ' + ''.join(nuevaClase.horaInicio) + ' - ' + ''.join(nuevaClase.horaFin) + '\n' + 
-                  'Días: ' + ''.join(nuevaClase.dias)+ '\n')
-                listaClases.append(nuevaClase)
+                elif(esNombre(contenido)):
+                    profesores.append(contenido)
 
-                dias = ''
-                horarioInicio = ''
-                horarioFin = ''
-                dias = ''
-                salon = []
+                if( salon and horario and dias and profesores and contenido == 'Horas'):
+                    nuevaClase = clase()
+                    nuevaClase.salon = salon
+                    nuevaClase.horario = horario
+                    nuevaClase.dias = dias
+                    nuevaClase.profesores = profesores
+                    print('Clase nueva: \n' +
+                     'Salones: ' + listaToString(nuevaClase.salon) + '\n' +
+                     'Horarios: ' + listaToString(nuevaClase.horario) + '\n' +
+                     'Días: ' + listaToString(nuevaClase.dias)+ '\n' +
+                     'Profesores: ' + listaToString(nuevaClase.profesores))
+
+                    listaClases.append(nuevaClase)
+
+                    dias = []
+                    horario = []
+                    dias = []
+                    salon = []
+                    profesores = []
                 
             
-
     #elcsv = serialize_articles(listaArticulos)
     #store(elcsv)
     log("termine")
@@ -129,14 +131,33 @@ def store(content):
     r.set('news' , content.encode('utf8'))
 
 def esDia(casilla):
-    print(casilla)
-    if('  L  ' in casilla or '  M  ' in casilla or '  I  ' in casilla or'  J  ' in casilla or '  V  ' in casilla or '  S  ' in casilla):
-        return True
-    else:
-        return False
+
+    cantidadEspacios = 0
+    cantidadLetras = 0
+
+    for caracter in casilla:
+        if (caracter == ' '):
+            cantidadEspacios += 1
+        else:
+            cantidadLetras += 1
+
+    #Conjetura: la cantidad de espacios en el string es dos veces la cantidad de letras menos 1, por ejemplo:
+    # "L" > Cantidad de letras = 1, espacios  = 0, entonces cumple la formula (0 = 2*(1-1))
+    # "L  M  V" Cantidad de letras = 3, espacios igual 4, entonces cumple la fórmula (4 = 2(3-1))
+    return (cantidadEspacios == 4*(cantidadLetras-1) or cantidadEspacios == 6*(cantidadLetras-1))
+
+def esNombre(casilla):
+    if( not esDia(casilla)):
+        return ' ' in casilla #esto puede servir porque si hice lstrip() y rstrip(), si es un nombre va a tener AL MENOS 1 espacio
+
+
+def listaToString(lista):
+    return ("[" + ", ".join(map(str, lista)) + "]")
+
 
 scrape()
 schedule.every(5).minutes.do(scrape)
 while True:
     schedule.run_pending()
     time.sleep(1)
+    #python scraperregistro.py
